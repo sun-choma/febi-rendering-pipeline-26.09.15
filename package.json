@@ -1,0 +1,21 @@
+{
+  "name": "febi-rendering-pipeline-26.09.15",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@11.18.0",
+  "scripts": {
+    "base": "echo /$(basename -s .git $(git config --get remote.origin.url))/",
+    "dev": "slidev --open",
+    "build": "slidev build --base $(pnpm --silent run base)",
+    "preview": "vite preview --outDir dist --port 4173 --base $(pnpm --silent run base)",
+    "export": "slidev export"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.39.0",
+    "@slidev/cli": "52.19.1",
+    "@slidev/theme-default": "latest",
+    "@slidev/theme-seriph": "latest",
+    "slidev-theme-dracula": "^0.2.5",
+    "vue": "^3.5.33"
+  }
+}

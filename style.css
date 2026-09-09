@@ -1,0 +1,41 @@
+/* Shared styles for the FEBi rendering-pipeline deck */
+
+/* --- Section dividers (layout: section) --- */
+.section-num {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  opacity: 0.8;
+  color: var(--accent, #bd93f9);
+}
+.section-sub {
+  font-size: 1rem;
+  color: #6272a4;
+  margin-top: 0.5rem;
+}
+
+/* --- Deep-dive header strip ("you are here") --- */
+.locator {
+  max-width: 620px;
+  margin: 0 auto 0.5rem;
+  opacity: 0.95;
+}
+
+/* --- Shared: tree / code boxes (Slidev scopes per-slide <style>, so keep these global) --- */
+.tree {
+  margin: 0; font-family: 'Fira Code', monospace; font-size: 0.85rem; line-height: 1.5;
+  color: #6272a4; background: #21222c; border: 1px solid #44475a; border-radius: 6px; padding: 0.6rem 0.9rem;
+}
+.tree .t { color: #ff79c6; }   /* tag / selector */
+.tree .s { color: #f1fa8c; }   /* string */
+.tree .k { color: #8be9fd; }   /* keyword */
+.tree .p { color: #50fa7b; }   /* property */
+.tree .v { color: #bd93f9; }   /* value */
+.tree .muted { color: #6272a4; font-size: 0.85em; }
+
+/* --- Shared: bottom nuance notes --- */
+.notes { max-width: 760px; margin: 1.3rem auto 0; font-size: 0.8rem; }
+.notes ul { list-style: none; padding: 0; margin: 0; }
+.notes li { color: #6272a4; margin: 0.3rem 0; line-height: 1.35; }
+.notes strong { color: #f8f8f2; font-weight: 600; }
+.notes code { color: #ff79c6; font-size: 0.9em; }
