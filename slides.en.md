@@ -6,37 +6,37 @@ transition: slide-left
 
 # 🖥️ Rendering Pipeline
 
-HTMLからピクセルへ。マークアップが届いたあと、ブラウザが何をするのか。
+From HTML to pixels — what the browser does after the markup arrives.
 
 ---
 
-# 同じ動き、2つのやり方
+# Same motion. Two ways.
 
 <div class="hook-grid">
 
 <div class="hook-left">
 <JankSquares />
-<div class="hook-q">同じ四角、同じ動き、<b>2つのバージョン</b>。なぜ <b class="bad">Unoptimized</b> はカクつき、<b class="good">Optimized</b> は滑らかなのでしょうか？</div>
+<div class="hook-q">Same squares, same motion — <b>two versions</b>. Why does <b class="bad">Unoptimized</b> crawl while <b class="good">Optimized</b> stays smooth?</div>
 </div>
 
 <div class="hook-spoiler">
-<Spoiler label="種明かし" hint="クリックで表示">
+<Spoiler>
 
-毎フレーム **300個すべての四角** をループして、それぞれの位置をログに出しているだけです。問題なさそうですよね？
+Each frame loops over **all 300 squares** — and just logs each one's position. Harmless, right?
 
 ```js
-// ❌ 「位置をログしているだけ」
+// ❌ "just logging the position"
 for (const s of squares) {
-  s.style.top = y           // 書き込み
-  console.log(s.offsetTop)  // 読み込み → 即レイアウト
-}  // 300回読み込み → 1フレーム300レイアウト
+  s.style.top = y           // write
+  console.log(s.offsetTop)  // read → layout NOW
+}  // 300 reads → 300 layouts / frame
 
-// ✅ 最適化：読み込みを削除 → 1フレーム1レイアウト
+// ✅ optimized: drop the read → 1 layout / frame
 ```
 
-`offsetTop` を読むと **その場でレイアウトが強制されます**。無害に見える `console.log` が、四角ごとにそれを引き起こしているのです。
+Reading `offsetTop` **forces layout right now** — the innocent `console.log` triggers it once per square.
 
-<span class="sp-punch">ログでも書き込みでもなく、**1フレームに300回の強制レイアウト** が原因です。</span>
+<span class="sp-punch">Not the log, not the write — **300 forced layouts a frame**.</span>
 
 </Spoiler>
 </div>
@@ -60,7 +60,7 @@ for (const s of squares) {
 
 ---
 
-# パイプラインの全体像
+# The pipeline, end to end
 
 <div class="strip-wrap">
   <PipelineStrip :reveal="$clicks" :glow="[null, ['dom','cssom'], 'style', 'render', 'layout', 'paint', 'comp', 'screen'][$clicks] ?? null" />
@@ -69,25 +69,25 @@ for (const s of squares) {
 <div class="one-liners">
 <v-click>
 
-- **DOM**：構造
-- **CSSOM**：スタイル
+- **DOM** — the structure
+- **CSSOM** — the styles
 
 </v-click>
 <v-clicks>
 
-- **Style**：ルールを要素に対応させ、要素ごとに最終的なスタイルを計算する
-- **Render Tree**：実際に表示されるもの
-- **Layout**：どれくらいの大きさで、どこに置くか
-- **Paint**：ピクセルを塗る
-- **Composite**：レイヤーを組み立てる
-- **🖥️**：画面に映るフレーム
+- **Style** — match rules to elements, compute each element's final styles
+- **Render Tree** — what's actually visible
+- **Layout** — how big, and where
+- **Paint** — fill in the pixels
+- **Composite** — assemble the layers
+- **🖥️** — the frame on screen
 
 </v-clicks>
 </div>
 
 <!--
-全体像の把握だけ。これは地図です。深入りしないこと。クリックごとに1つのステージが現れます。
-狙いは全体の形が腑に落ちること。詳細は次から。
+Orientation only. This is the map — don't rabbit-hole. Each click reveals one stage.
+The payoff is the whole shape clicking into place; the deep dives come next.
 -->
 
 <style>
@@ -105,13 +105,13 @@ style: "--accent: #8be9fd"
 
 <div class="section-num">03</div>
 
-# パースとツリー構築
+# Parsing → Trees
 
-<div class="section-sub">HTMLとCSSがDOMとCSSOMになります。並行して構築されます。</div>
+<div class="section-sub">HTML and CSS become the DOM and CSSOM — built in parallel.</div>
 
 ---
 
-# 2つのソース → 2つのツリー
+# Two sources → two trees
 
 <div class="locator">
   <PipelineStrip :active="['dom','cssom']" accent="#8be9fd" />
@@ -129,7 +129,7 @@ style: "--accent: #8be9fd"
 ```
 
 </div>
-<div class="cell go">パース ▸</div>
+<div class="cell go">parse ▸</div>
 <div class="cell">
 <pre class="tree"><span class="t">html</span>
 └─ <span class="t">body</span>
@@ -145,7 +145,7 @@ h1   { font-size: 2rem }
 ```
 
 </div>
-<div class="cell go">パース ▸</div>
+<div class="cell go">parse ▸</div>
 <div class="cell">
 <pre class="tree"><span class="k">CSSOM</span>
 ├─ <span class="t">body</span> { <span class="p">color</span> }
@@ -156,9 +156,9 @@ h1   { font-size: 2rem }
 
 <div class="notes">
 
-- ⏱ **並行**：2つのツリーは同時に育ち、どちらも相手を待ちません。
-- 🌳 **DOM ≠ 書いたHTML**：不正なマークアップは修復され、省略されたタグ（`html`、`body`、`tbody`）が補われます。ソーステキストではなく、生きたオブジェクトモデルです。
-- 🎨 **CSSOM ≠ 書いたCSSだけ**：あなたのルールは、ブラウザのデフォルトスタイルの上に重なります。
+- ⏱ **Parallel** — both trees grow at once; neither waits for the other.
+- 🌳 **The DOM ≠ your HTML** — invalid markup is repaired, implied tags (`html`, `body`, `tbody`) added. It's a live object model, not your source text.
+- 🎨 **The CSSOM ≠ only your CSS** — your rules layer on top of the browser's default styles.
 
 </div>
 
@@ -192,7 +192,7 @@ h1   { font-size: 2rem }
 
 ---
 
-# CSSはレンダリングをブロックする
+# CSS is render-blocking
 
 <div class="locator">
   <PipelineStrip :active="['cssom']" accent="#8be9fd" />
@@ -202,35 +202,35 @@ h1   { font-size: 2rem }
 
 <div class="rb-text">
 
-**DOM** はHTMLが流れ込むにつれて、少しずつ構築できます。
-**CSSOM** はそうはいきません。カスケードでは、*最後* のルールが *最初* の要素のスタイルを変えることがあるからです。
+The **DOM** can build incrementally as HTML streams in.
+The **CSSOM** can't — the cascade means the *last* rule can restyle the *first* element.
 
-そのためブラウザは、すべてのCSSを解析し終えるまで **最初の描画を止めます**。<span class="hl">CSSはレンダリングをブロックします。</span>
+So the browser **holds the first paint** until all CSS is parsed. <span class="hl">CSS is render-blocking.</span>
 
-その見返りとして、スタイルのないコンテンツが一瞬映ってから整うのではなく、**一度で正しく** 描画されます。
+The payoff: it paints **once, correctly** — instead of flashing unstyled content, then snapping into place.
 
 </div>
 
 <div class="rb-demo">
 
 <div class="mock bad">
-<div class="bar">✗ 早すぎる描画</div>
+<div class="bar">✗ painting early</div>
 <div class="page plain">
 <div class="ph1">Sun*</div>
 <div class="ptext">Frontend Biweekly</div>
 <span class="plink">Learn more</span>
 </div>
-<div class="tag">スタイル未適用のちらつき</div>
+<div class="tag">flash of unstyled content</div>
 </div>
 
 <div class="mock good">
-<div class="bar">✓ ブラウザの実際の動作</div>
+<div class="bar">✓ what the browser does</div>
 <div class="page styled">
 <div class="sh1">Sun*</div>
 <div class="stext">Frontend Biweekly</div>
 <span class="slink">Learn more →</span>
 </div>
-<div class="tag">待って、一度で描画</div>
+<div class="tag">waits, paints once</div>
 </div>
 
 </div>
@@ -264,7 +264,7 @@ h1   { font-size: 2rem }
 
 ---
 
-# Style：ブラウザはすべての値を計算する
+# Style: the browser computes every value
 
 <div class="locator">
   <PipelineStrip :active="['style']" accent="#8be9fd" />
@@ -273,31 +273,31 @@ h1   { font-size: 2rem }
 <div class="st-grid">
 
 <div class="cell">
-<div class="st-lbl">1つの要素</div>
+<div class="st-lbl">One element</div>
 <pre class="tree">&lt;p class="lead"&gt;</pre>
-<div class="st-lbl">マッチするルール</div>
+<div class="st-lbl">Rules that match</div>
 <pre class="tree"><span class="t">p</span>     { <span class="p">color</span>: #eee }
 <span class="t">.lead</span> { <span class="p">font-size</span>: 20px }
-<span class="t">body</span>  { <span class="p">color</span>: #ccc } <span class="muted">← 継承</span></pre>
+<span class="t">body</span>  { <span class="p">color</span>: #ccc } <span class="muted">← inherited</span></pre>
 </div>
 
-<div class="st-go">マッチ<br>+ カスケード ▸</div>
+<div class="st-go">match<br>+ cascade ▸</div>
 
 <div class="cell">
-<div class="st-lbl">計算済みスタイル</div>
-<pre class="tree"><span class="p">color</span>:     <span class="v">#eee</span>    <span class="muted">ルールが継承に優先</span>
+<div class="st-lbl">Computed style</div>
+<pre class="tree"><span class="p">color</span>:     <span class="v">#eee</span>    <span class="muted">rule beats inherited</span>
 <span class="p">font-size</span>: <span class="v">20px</span>   <span class="muted">.lead</span>
-<span class="p">display</span>:   <span class="v">block</span>  <span class="muted">UAデフォルト</span>
-<span class="p">margin</span>:    <span class="v">16px 0</span> <span class="muted">UAデフォルト</span>
-<span class="muted">…その他すべてのプロパティ</span></pre>
+<span class="p">display</span>:   <span class="v">block</span>  <span class="muted">UA default</span>
+<span class="p">margin</span>:    <span class="v">16px 0</span> <span class="muted">UA default</span>
+<span class="muted">…and every other property</span></pre>
 </div>
 
 </div>
 
 <div class="notes">
 
-- どの要素も、最終的に **すべての** プロパティに値を持ちます。継承されたものやブラウザのデフォルトも含め、書いた覚えのないものまで。
-- クラスやスタイルを変えると、ブラウザは影響を受けた要素に対して **これを再実行します**。それがDevToolsの **「Recalculate Style」** です。
+- Every element ends up with a value for **every** property — inherited or from the browser's defaults, even ones you never wrote.
+- Change a class or a style and the browser **re-runs this** for the affected elements — that's **"Recalculate Style"** in DevTools.
 
 </div>
 
@@ -311,7 +311,7 @@ h1   { font-size: 2rem }
 
 ---
 
-# レンダーツリー：表示されるものだけ
+# The render tree: only what's visible
 
 <div class="locator">
   <PipelineStrip :active="['render']" accent="#8be9fd" />
@@ -329,14 +329,14 @@ h1   { font-size: 2rem }
 
 <div class="merge">
 <div class="rule"><span class="sel">.banner</span> { <span class="p">display</span>: <span class="v">none</span> }</div>
-<div class="drops">除外 ▸</div>
+<div class="drops">drops ▸</div>
 </div>
 
 <div class="cell">
-<div class="lbl">レンダーツリー</div>
+<div class="lbl">Render tree</div>
 <pre class="tree"><span class="t">body</span>
 ├─ <span class="t">nav</span>
-├─ <span class="gone">div.banner ✕ 除外</span>
+├─ <span class="gone">div.banner ✕ dropped</span>
 └─ <span class="t">main</span></pre>
 </div>
 
@@ -344,14 +344,14 @@ h1   { font-size: 2rem }
 
 <div class="rt-compare">
 
-- <code class="c-drop">display: none</code> → **レンダーツリーに入らない** · ボックスなし · 場所を取らない · 描画されない
-- <code class="c-keep">visibility: hidden</code> → **レンダーツリーに残る** · ボックスと場所は保持 · 描画されないだけ
+- <code class="c-drop">display: none</code> → **not in the render tree** · no box · no space · never painted
+- <code class="c-keep">visibility: hidden</code> → **stays in the render tree** · keeps its box &amp; space · just not painted
 
 </div>
 
 <div class="rt-caveat">
 
-⚠️ **それでもDOMには残っています。** <code>display: none</code> は <em>描画</em> のコストはゼロですが、<em>存在</em> のコストはゼロではありません。ノードはメモリ、JSの参照、リスナーを保持し続け、再表示すると新たなレイアウトが発生します。
+⚠️ **But it's still in the DOM.** <code>display: none</code> is free to <em>render</em>, not free to <em>exist</em> — the node keeps its memory, JS references and listeners, and flipping it back on costs a fresh layout.
 
 </div>
 
@@ -389,13 +389,13 @@ style: "--accent: #ffb86c"
 
 <div class="section-num">04</div>
 
-# Layout と Reflow
+# Layout & Reflow
 
-<div class="section-sub">どのボックスも、どれくらいの大きさで、どこに置かれるのか。そしてそれを変えると、どんなコストがかかるのか。</div>
+<div class="section-sub">How big is every box, and where does it sit? And what does changing that cost?</div>
 
 ---
 
-# Reflow：1つの変更、多くの再計算
+# Reflow: one change, many recalculations
 
 <div class="locator">
   <PipelineStrip :active="['layout']" accent="#ffb86c" />
@@ -405,20 +405,20 @@ style: "--accent: #ffb86c"
 
 <div class="rf-text">
 
-**Layout** はどのボックスについても、その形状、つまり **サイズ** と **位置** を計算します。
+**Layout** computes the geometry of every box — its **size** and its **position**.
 
-**Reflow** = 形状の変化のあとにレイアウトを再実行すること。
+**Reflow** = re-running layout after a geometric change.
 
-これは **連鎖します**。1つのボックスをリサイズしたり動かしたりすると、その兄弟、子、先祖まで再計算が必要になることがあり、ときにはページ全体に及びます。
+It **cascades**: resize or move one box and its siblings, children, and ancestors may all have to be recomputed — sometimes the whole page.
 
-<div class="rf-triggers">きっかけ： <code>width</code>、<code>height</code>、<code>margin</code>、<code>font-size</code>、ノードの追加・削除、ウィンドウのリサイズなど</div>
+<div class="rf-triggers">Triggers: <code>width</code>, <code>height</code>, <code>margin</code>, <code>font-size</code>, adding/removing nodes, window resize…</div>
 
 </div>
 
 <div class="rf-demo">
 
 <div class="mini">
-<div class="mtag">変更前</div>
+<div class="mtag">before</div>
 <div class="doc">
 <div class="row nav">nav</div>
 <div class="row a">A</div>
@@ -427,10 +427,10 @@ style: "--accent: #ffb86c"
 </div>
 </div>
 
-<div class="rf-go">Aを拡大 ▸</div>
+<div class="rf-go">grow A ▸</div>
 
 <div class="mini">
-<div class="mtag">変更後</div>
+<div class="mtag">after</div>
 <div class="doc">
 <div class="row nav">nav</div>
 <div class="row a tall reflowed">A</div>
@@ -443,7 +443,7 @@ style: "--accent: #ffb86c"
 
 </div>
 
-<div class="rf-caption">Aの高さを変える → BとCも動く必要がある → <span class="hl">1つではなく3つのボックスが再計算される</span>。</div>
+<div class="rf-caption">Change A's height → B and C must move → <span class="hl">3 boxes recomputed, not 1</span>.</div>
 
 <style>
 .rf-grid { display: grid; grid-template-columns: 1fr auto; gap: 2.5rem; align-items: center; max-width: 860px; margin: 0.5rem auto 0; }
@@ -470,40 +470,40 @@ style: "--accent: #ffb86c"
 
 ---
 
-# レイアウトスラッシング：書き込み後に読み込む罠
+# Layout thrashing — the read-after-write trap
 
-<div class="lt-mech">書き込みはレイアウトを <b>dirty</b>（先送り）にするだけです。読み込み（<code>offsetHeight</code>、<code>getBoundingClientRect()</code>）は、ブラウザに <b>その場で計算すること</b> を強制します。</div>
+<div class="lt-mech">A write just marks layout <b>dirty</b> (deferred). A read — <code>offsetHeight</code>, <code>getBoundingClientRect()</code> — forces the browser to <b>compute it right now</b>.</div>
 
 <div class="lt-cols">
 
 <div class="lt-col">
-<div class="lt-tag bad">❌ 交互</div>
+<div class="lt-tag bad">❌ interleaved</div>
 
 ```js
 for (const el of items) {
-  const h = el.offsetHeight  // 読み込み → レイアウト！
-  el.style.top = place(h)    // 書き込み → dirty
+  const h = el.offsetHeight  // read → layout!
+  el.style.top = place(h)    // write → dirty
 }
 ```
 
-<div class="lt-count bad">⚡ 1アイテムごとに <b>1レイアウト</b> → N回</div>
+<div class="lt-count bad">⚡ one layout <b>per item</b> → N</div>
 </div>
 
 <div class="lt-col">
-<div class="lt-tag good">✅ まとめる</div>
+<div class="lt-tag good">✅ batched</div>
 
 ```js
-const hs = items.map(el => el.offsetHeight)  // すべて読み込み
+const hs = items.map(el => el.offsetHeight)  // read all
 items.forEach((el, i) =>
-  el.style.top = place(hs[i]))               // すべて書き込み
+  el.style.top = place(hs[i]))               // write all
 ```
 
-<div class="lt-count good">⚡ <b>合計1レイアウト</b> → 1回</div>
+<div class="lt-count good">⚡ one layout <b>total</b> → 1</div>
 </div>
 
 </div>
 
-<div class="lt-rule"><b>読み込みをまとめてから、書き込む。</b> レイアウトがきれいなうちに読み、そのあと一度だけdirtyにします。<span class="dim">（<code>fastdom</code> のようなライブラリが自動化してくれます）</span></div>
+<div class="lt-rule"><b>Batch reads, then writes.</b> Read while layout is clean, then dirty it once. <span class="dim">(libraries like <code>fastdom</code> automate this)</span></div>
 
 <style>
 .lt-mech { text-align: center; color: #6272a4; font-size: 0.88rem; max-width: 720px; margin: 0.5rem auto 1.4rem; line-height: 1.5; }
@@ -531,13 +531,13 @@ style: "--accent: #50fa7b"
 
 <div class="section-num">05</div>
 
-# Paint と Repaint
+# Paint & Repaint
 
-<div class="section-sub">いよいよピクセルを塗ります。色、テキスト、ボーダー、影。塗り直すと、どんなコストがかかるのか。</div>
+<div class="section-sub">Now fill in the pixels — colors, text, borders, shadows. What does re-filling them cost?</div>
 
 ---
 
-# Repaint：ピクセルは新しく、ボックスは同じ
+# Repaint: new pixels, same boxes
 
 <div class="locator">
   <PipelineStrip :active="['paint']" accent="#50fa7b" />
@@ -547,14 +547,14 @@ style: "--accent: #50fa7b"
 
 <div class="rp-text">
 
-**Repaint** = 要素の *見た目* が変わってもその *ボックス* が変わらないときに、ピクセルを塗り直すこと。
+**Repaint** = re-filling an element's pixels when its *look* changes but its *box* doesn't.
 
 <div class="path">
 <span class="pst">Style</span><span class="arr">→</span><span class="pst skip">Layout</span><span class="arr">→</span><span class="pst on">Paint</span><span class="arr">→</span><span class="pst">Composite</span>
 </div>
-<div class="path-note">形状は変わらない → <span class="hl">レイアウトはスキップ</span> → そのままペイントへ。</div>
+<div class="path-note">Geometry unchanged → <span class="hl">layout is skipped</span> → straight to paint.</div>
 
-<div class="rp-triggers">きっかけ： <code>color</code>、<code>background-color</code>、<code>visibility</code>、<code>box-shadow</code>、<code>outline</code></div>
+<div class="rp-triggers">Triggers: <code>color</code>, <code>background-color</code>, <code>visibility</code>, <code>box-shadow</code>, <code>outline</code></div>
 
 </div>
 
@@ -565,7 +565,7 @@ style: "--accent: #50fa7b"
 <div class="ct">Frontend Biweekly</div>
 <div class="cb">Go</div>
 </div>
-<div class="rp-go">テーマ切替 ▸<br><small>repaintのみ、reflowなし</small></div>
+<div class="rp-go">toggle theme ▸<br><small>repaint, no reflow</small></div>
 <div class="card light">
 <div class="ch">Sun*</div>
 <div class="ct">Frontend Biweekly</div>
@@ -576,7 +576,7 @@ style: "--accent: #50fa7b"
 
 </div>
 
-<div class="rp-caveat">⚠️ Repaintも無料ではありません。広い範囲や <code>box-shadow</code>・ぼかし・グラデーションはやはりコストがかかります。レイアウトのステージを飛ばすだけです。</div>
+<div class="rp-caveat">⚠️ Repaint isn't free either — a large area, or a <code>box-shadow</code> / blur / gradient, still costs. It just skips the layout stage.</div>
 
 <style>
 .rp-grid { display: grid; grid-template-columns: 1fr auto; gap: 2.5rem; align-items: center; max-width: 860px; margin: 0.5rem auto 0; }
@@ -619,11 +619,11 @@ style: "--accent: #bd93f9"
 
 # Composite
 
-<div class="section-sub">最終的な組み立て。レイヤーをGPUで積み重ねます。そして <code>transform</code> と <code>opacity</code> がほぼ無料である理由。</div>
+<div class="section-sub">The final assembly — stack the layers on the GPU. And why <code>transform</code> & <code>opacity</code> are nearly free.</div>
 
 ---
 
-# Composite：描画済みレイヤーを積み重ねる
+# Composite: stacking pre-painted layers
 
 <div class="locator">
   <PipelineStrip :active="['comp']" accent="#bd93f9" />
@@ -633,20 +633,20 @@ style: "--accent: #bd93f9"
 
 <div class="cp-scene">
 <CompositeLayers />
-<div class="scene-cap">3つの描画済みレイヤー → <span class="gpu">GPUが積み重ねる</span> → 🖥️ 1フレーム</div>
-<div class="scene-hint">⟳ ドラッグで回転 · ダブルクリックでリセット</div>
+<div class="scene-cap">3 pre-painted layers → <span class="gpu">GPU stacks them</span> → 🖥️ one frame</div>
+<div class="scene-hint">⟳ drag to rotate · double-click to reset</div>
 </div>
 
 <div class="cp-text">
 
-<code>transform</code> はレイヤーごと位置を変え、<code>opacity</code> はレイヤーをフェードさせます。レイヤーのピクセルは **すでに描画済み** です。
+<code>transform</code> repositions a whole layer · <code>opacity</code> fades one — the layer's pixels are **already painted**.
 
 <div class="path">
 <span class="pst skip">Layout</span><span class="arr">→</span><span class="pst skip">Paint</span><span class="arr">→</span><span class="pst on">Composite</span>
 </div>
-<div class="path-note">レイアウト <b>も</b> ペイントもスキップ。コンポジタだけが動きます。</div>
+<div class="path-note">Skip layout <b>and</b> paint — only the compositor runs.</div>
 
-<div class="cp-gpu">🧠 <b>「GPUアクセラレーション」は魔法ではありません。</b> コンポジタは、すでに持っているレイヤーをGPU上で、<b>メインスレッドの外で</b> 組み直すだけです。同じ作業を速くしたのではなく、より安いステージなのです。</div>
+<div class="cp-gpu">🧠 <b>"GPU-accelerated" isn't magic</b> — the compositor just reassembles layers it already has, on the GPU, <b>off the main thread</b>. It's a cheaper stage, not a faster version of the same work.</div>
 
 </div>
 
@@ -676,27 +676,27 @@ style: "--accent: #bd93f9"
 
 ---
 
-# 同じ動き、2つのコスト
+# Same motion, two costs
 
 <div class="tw">
 
 <div class="twcol" style="--c: #ff5555">
-<div class="twlabel"><code>left</code> で動かす</div>
+<div class="twlabel">move with <code>left</code></div>
 <div class="track"><div class="tbox move-left"></div></div>
 <div class="tbadges"><span class="badge on">Layout</span><span class="badge on">Paint</span><span class="badge on">Composite</span></div>
-<div class="twcost">毎フレーム → layout + paint + composite</div>
+<div class="twcost">every frame → layout + paint + composite</div>
 </div>
 
 <div class="twcol" style="--c: #50fa7b">
-<div class="twlabel"><code>transform</code> で動かす</div>
+<div class="twlabel">move with <code>transform</code></div>
 <div class="track"><div class="tbox move-tf"></div></div>
 <div class="tbadges"><span class="badge off">Layout</span><span class="badge off">Paint</span><span class="badge on">Composite</span></div>
-<div class="twcost">毎フレーム → composite だけ</div>
+<div class="twcost">every frame → just composite</div>
 </div>
 
 </div>
 
-<div class="tcap">見た目は同じ動きですが、<code>left</code> は毎フレーム layout と paint を再実行し、<code>transform</code> は完成したレイヤーの位置を変えるだけです。<span class="hl">これがコンポジタの利点です。</span></div>
+<div class="tcap">Pixel-identical motion — but <code>left</code> re-runs layout &amp; paint every frame, while <code>transform</code> just repositions a finished layer. <span class="hl">That's the compositor payoff.</span></div>
 
 <style>
 .tw { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3rem; max-width: 760px; margin: 1.8rem auto 0; }
@@ -726,49 +726,49 @@ style: "--accent: #ff5555"
 
 <div class="section-num">07</div>
 
-# 重要なポイント
+# Key takeaways
 
-<div class="section-sub">自分の目で確かめる方法、頭の中のモデル、そしてコストの早見表。</div>
+<div class="section-sub">See it yourself, the mental model, and the cost cheat sheet.</div>
 
 ---
 
-# 各ステージを現行犯で捕まえる
+# Catch each stage red-handed
 
 <div class="locator">
   <PipelineStrip :active="['layout','paint','comp']" accent="#ff5555" />
 </div>
 
-<div class="dt-intro">各ステージの役割がわかったところで、それぞれを <b>目で見る</b> 方法を紹介します：</div>
+<div class="dt-intro">Now that you know what each stage does — here's how to <b>see</b> each one:</div>
 
 <div class="dt-grid">
 
 <div class="dt-card" style="--c: #50fa7b">
 <div class="dt-mock"><div class="m-ui"><span class="m-flash"></span></div></div>
 <div class="dt-name">Paint flashing</div>
-<div class="dt-where">Rendering タブ</div>
-<div class="dt-what">緑のフラッシュが、いま <b>repaint</b> された領域を示します。</div>
+<div class="dt-where">Rendering tab</div>
+<div class="dt-what">Green flashes mark regions that just <b>repainted</b>.</div>
 <div class="dt-catch">→ Paint</div>
 </div>
 
 <div class="dt-card" style="--c: #ffb86c">
 <div class="dt-mock"><div class="m-ui m-layer"></div></div>
 <div class="dt-name">Layer borders</div>
-<div class="dt-where">Rendering タブ</div>
-<div class="dt-what">オレンジの枠が、各 <b>コンポジタレイヤー</b> を示します。</div>
+<div class="dt-where">Rendering tab</div>
+<div class="dt-what">Orange outlines show each <b>compositor layer</b>.</div>
 <div class="dt-catch">→ Composite</div>
 </div>
 
 <div class="dt-card" style="--c: #bd93f9">
 <div class="dt-mock"><div class="m-track"><span class="m-seg lay">Layout</span><span class="m-seg pnt">Paint</span></div></div>
 <div class="dt-name">Performance recording</div>
-<div class="dt-where">Performance タブ</div>
-<div class="dt-what">1フレーム内の <b>Layout</b> と <b>Paint</b> のブロックが見えます。</div>
+<div class="dt-where">Performance tab</div>
+<div class="dt-what">See <b>Layout</b> vs <b>Paint</b> blocks in a frame.</div>
 <div class="dt-catch">→ Layout</div>
 </div>
 
 </div>
 
-<div class="dt-note">💡 冒頭のデモで3つすべてをオンにしてみましょう。<b>さっきのカクつき</b> が、画面上で見えるようになります。</div>
+<div class="dt-note">💡 Toggle all three on our opener's demo — the <b>jank from earlier</b>, now visible on screen.</div>
 
 <style>
 .locator { max-width: 460px; margin: 0.2rem auto 0.8rem; }
@@ -795,18 +795,18 @@ style: "--accent: #ff5555"
 
 ---
 
-# 持ち帰ってほしいこと
+# Walk away with this
 
 <div class="kt">
 
-- 🧭 **順番のあるパイプライン**：HTML/CSS → ツリー → Style → Layout → Paint → Composite → ピクセル。順番を知ることがすべてです。
-- 💸 **コスト = 再実行されるステージの数**。ある変更は、そのステージ以降のすべてを再実行します。早いステージほど高コストです。
-- 🎯 **安い経路でアニメーションする**。<code>transform</code> と <code>opacity</code> は composite だけ。動きにはこれらを使い、レイアウト系プロパティのアニメーションは避けましょう。
-- 🧹 **ブラウザに二度手間をさせない**。DOMの読み込みをまとめてから書き込み、レイアウトを要素ごとではなく一度だけ実行させましょう。
+- 🧭 **It's a pipeline, in order** — HTML/CSS → trees → Style → Layout → Paint → Composite → pixels. Knowing the order is the whole game.
+- 💸 **Cost = how many stages re-run** — a change re-runs everything from its stage onward. The earlier the stage, the more expensive.
+- 🎯 **Animate on the cheap path** — <code>transform</code> & <code>opacity</code> only composite. Reach for them for motion; avoid animating layout properties.
+- 🧹 **Don't make the browser redo work** — batch DOM reads, then writes, so layout runs once instead of per element.
 
 </div>
 
-<div class="kt-foot">すべてを細かく最適化しろということではありません。<b>何が高コストかを知る</b> ことで、スケールしにくいものを見抜けるようになる、ということです。</div>
+<div class="kt-foot">None of this means micro-optimize everything — it means <b>know what's expensive</b>, so you recognize what scales badly.</div>
 
 <style>
 .kt { max-width: 760px; margin: 1.6rem auto 0; }
@@ -820,7 +820,7 @@ style: "--accent: #ff5555"
 
 ---
 
-# では、それぞれの変更のコストは？
+# So — what does each change cost?
 
 <div class="fin-strip">
   <PipelineStrip />
@@ -830,7 +830,7 @@ style: "--accent: #ff5555"
 
 <table class="cs">
 <thead>
-<tr><th>変えるもの…</th><th>Layout</th><th>Paint</th><th>Composite</th></tr>
+<tr><th>Change this…</th><th>Layout</th><th>Paint</th><th>Composite</th></tr>
 </thead>
 <tbody>
 <tr class="r-hi"><td><code>width</code>, <code>top</code>, <code>font-size</code></td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td></tr>
@@ -839,9 +839,9 @@ style: "--accent: #ff5555"
 </tbody>
 </table>
 
-<div class="cs-legend">✓ はそのステージを <b>再実行</b> しなければならないことを意味します。✓ が多いほど高コストです。滑らかだったデモは <code>transform</code> を使っていました。一番下の行、<b>Composite だけ</b> です。</div>
+<div class="cs-legend">A ✓ means that stage must <b>re-run</b> — the more ✓, the more expensive. Our smooth demo used <code>transform</code>: the bottom row — <b>Composite only</b>.</div>
 
-<div class="cs-foot"><b>Layout</b> の再実行を <i>reflow</i>、<b>Paint</b> の再実行を <i>repaint</i> と呼びます。 · 詳しいリファレンス： <a class="url" href="https://csstriggers.com" target="_blank">csstriggers.com</a></div>
+<div class="cs-foot">Re-running <b>Layout</b> is called <i>reflow</i>; re-running <b>Paint</b> is <i>repaint</i>. · Full reference: <a class="url" href="https://csstriggers.com" target="_blank">csstriggers.com</a></div>
 
 </div>
 
@@ -874,9 +874,9 @@ layout: center
 class: text-center
 ---
 
-# ハードウェアは問題ではない 🖥️
+# Hardware isn't the problem 🖥️
 
-<div class="cta">パイプラインを理解し、いちばん非力なデバイスに合わせて作る。パフォーマンスはアクセシビリティです。</div>
+<div class="cta">Understand the pipeline, build for the weakest device — performance is accessibility.</div>
 
 <div class="pills">
 

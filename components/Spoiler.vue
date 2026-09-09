@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-defineProps<{ label?: string }>()
+defineProps<{ label?: string; hint?: string }>()
 const shown = ref(false)
 </script>
 
@@ -9,7 +9,7 @@ const shown = ref(false)
     <button class="sp-btn" :class="{ open: shown }" @click="shown = !shown">
       <span class="ic">{{ shown ? '🔓' : '🔒' }}</span>
       {{ label || 'The catch' }}
-      <span class="hint">{{ shown ? '' : '— click to reveal' }}</span>
+      <span class="hint">{{ shown ? '' : (hint || '— click to reveal') }}</span>
     </button>
     <div class="sp-content" v-show="shown"><slot /></div>
   </div>

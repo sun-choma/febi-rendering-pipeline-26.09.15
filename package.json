@@ -6,9 +6,12 @@
   "scripts": {
     "base": "echo /$(basename -s .git $(git config --get remote.origin.url))/",
     "dev": "slidev --open",
+    "dev:en": "slidev slides.en.md --open",
     "build": "slidev build --base $(pnpm --silent run base)",
+    "build:en": "slidev build slides.en.md --base $(pnpm --silent run base) --out dist-en",
     "preview": "vite preview --outDir dist --port 4173 --base $(pnpm --silent run base)",
-    "export": "slidev export"
+    "export": "slidev export",
+    "export:en": "slidev export slides.en.md"
   },
   "dependencies": {
     "@lucide/vue": "^1.39.0",
