@@ -7,3 +7,6 @@ dist
 components.d.ts
 .idea
 /febi-rendering-pipeline-26.09.15/
+
+# Local-only project instructions; kept out of the remote
+CLAUDE.md
