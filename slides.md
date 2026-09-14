@@ -480,9 +480,10 @@ style: "--accent: #ffb86c"
 <div class="lt-tag bad">❌ 交互</div>
 
 ```js
+let y = 0
 for (const el of items) {
-  const h = el.offsetHeight  // 読み込み → レイアウト！
-  el.style.top = place(h)    // 書き込み → dirty
+  el.style.top = y + 'px'  // 書き込み → dirty
+  y += el.offsetHeight     // 読み込み → レイアウト！
 }
 ```
 
@@ -493,9 +494,12 @@ for (const el of items) {
 <div class="lt-tag good">✅ まとめる</div>
 
 ```js
-const hs = items.map(el => el.offsetHeight)  // すべて読み込み
-items.forEach((el, i) =>
-  el.style.top = place(hs[i]))               // すべて書き込み
+const hs = items.map(el => el.offsetHeight)  // まず全部読み込み
+let y = 0
+items.forEach((el, i) => {
+  el.style.top = y + 'px'                     // すべて書き込み
+  y += hs[i]
+})
 ```
 
 <div class="lt-count good">⚡ <b>合計1レイアウト</b> → 1回</div>
@@ -767,8 +771,6 @@ style: "--accent: #ff5555"
 </div>
 
 </div>
-
-<div class="dt-note">💡 冒頭のデモで3つすべてをオンにしてみましょう。<b>さっきのカクつき</b> が、画面上で見えるようになります。</div>
 
 <style>
 .locator { max-width: 460px; margin: 0.2rem auto 0.8rem; }

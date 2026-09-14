@@ -480,9 +480,10 @@ It **cascades**: resize or move one box and its siblings, children, and ancestor
 <div class="lt-tag bad">❌ interleaved</div>
 
 ```js
+let y = 0
 for (const el of items) {
-  const h = el.offsetHeight  // read → layout!
-  el.style.top = place(h)    // write → dirty
+  el.style.top = y + 'px'  // write → dirty
+  y += el.offsetHeight     // read → layout!
 }
 ```
 
@@ -493,9 +494,12 @@ for (const el of items) {
 <div class="lt-tag good">✅ batched</div>
 
 ```js
-const hs = items.map(el => el.offsetHeight)  // read all
-items.forEach((el, i) =>
-  el.style.top = place(hs[i]))               // write all
+const hs = items.map(el => el.offsetHeight)  // read all first
+let y = 0
+items.forEach((el, i) => {
+  el.style.top = y + 'px'                     // write all
+  y += hs[i]
+})
 ```
 
 <div class="lt-count good">⚡ one layout <b>total</b> → 1</div>
@@ -767,8 +771,6 @@ style: "--accent: #ff5555"
 </div>
 
 </div>
-
-<div class="dt-note">💡 Toggle all three on our opener's demo — the <b>jank from earlier</b>, now visible on screen.</div>
 
 <style>
 .locator { max-width: 460px; margin: 0.2rem auto 0.8rem; }
